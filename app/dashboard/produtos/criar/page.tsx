@@ -176,7 +176,7 @@ export default function CriarCatalogo() {
           </div>
 
           <div>
-            <label className="block font-medium mb-1">Preço (R$)</label>
+            <label className="block font-medium mb-1">Preço (Kz)</label>
             <input
               type="number"
               step="0.01"
