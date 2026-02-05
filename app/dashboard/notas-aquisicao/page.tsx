@@ -20,11 +20,19 @@ interface Cliente {
   email: string;
   activo: boolean;
   papel: string;
+  creditoAcumulado?: string;
 }
 
 interface NotaAquisicao {
   id: string;
-  estado: "EM_ANALISE" | "APROVADA" | "RECUSADO" | "AGUARDANDO_STOCK";
+  valorEmFalta?: string | number;
+  estado:
+    | "EM_ANALISE"
+    | "AGUARDANDO_STOCK"
+    | "APROVADA"
+    | "RECUSADA"
+    | "PAGAMENTO_PENDENTE"
+    | "CONCLUIDA";
 }
 
 interface ProdutoCatalogo {
@@ -71,6 +79,19 @@ export default function OficiosPage() {
   const [produtoSelecionadoId, setProdutoSelecionadoId] = useState<string>("");
   const [quantidadeSaida, setQuantidadeSaida] = useState<number>(1);
 
+  const [pagamentoModal, setPagamentoModal] = useState<{
+    aberto: boolean;
+    oficio: Oficio | null;
+  }>({
+    aberto: false,
+    oficio: null,
+  });
+
+  const [valorPagamento, setValorPagamento] = useState("");
+  const [tipoPagamento, setTipoPagamento] = useState<
+    "IMEDIATO" | "PRESTACAO" | "NORMAL"
+  >("NORMAL");
+
   // Queries
   const { data: oficios = [], isLoading: loadingOficios } = useQuery<Oficio[]>({
     queryKey: ["oficios"],
@@ -87,6 +108,34 @@ export default function OficiosPage() {
       return res.data;
     },
   });
+
+  const pagamentoMutation = useMutation({
+    mutationFn: (body: {
+      notaId: string;
+      valor: number;
+      tipo: "IMEDIATO" | "PRESTACAO";
+    }) => api.post("/pagamento/normal", body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["oficios"] });
+      setPagamentoModal({ aberto: false, oficio: null });
+      setValorPagamento("");
+      setTipoPagamento("IMEDIATO");
+    },
+    onError: (error: any) => {
+      alert(error.response?.data?.message);
+    },
+  });
+
+  const abrirPagamento = (oficio: Oficio) => {
+    if (
+      oficio.notaAquisicao.estado !== "APROVADA" &&
+      oficio.notaAquisicao.estado !== "PAGAMENTO_PENDENTE"
+    )
+      return;
+
+    setPagamentoModal({ aberto: true, oficio });
+    setDropdownOpen(null);
+  };
 
   // Mutations
   const aceitarMutation = useMutation({
@@ -126,6 +175,20 @@ export default function OficiosPage() {
     },
   });
 
+  const creditoMutation = useMutation({
+    mutationFn: (body: { notaId: string }) =>
+      api.post("/pagamento/credito", body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["oficios"] });
+      setPagamentoModal({ aberto: false, oficio: null });
+      setValorPagamento("");
+      setTipoPagamento("NORMAL");
+    },
+    onError: (error: any) => {
+      alert(error.response?.data?.message);
+    },
+  });
+
   // Handlers
   const abrirRejeitar = (oficio: Oficio) => {
     setRejeitarModal({ aberto: true, oficio });
@@ -148,7 +211,7 @@ export default function OficiosPage() {
     if (!saidaModal.oficio || !produtoSelecionadoId) return;
 
     const produto = produtosDisponiveis.find(
-      (p) => p.id === produtoSelecionadoId
+      (p) => p.id === produtoSelecionadoId,
     );
     if (!produto || produto.stockAtual < quantidadeSaida) return;
 
@@ -165,12 +228,12 @@ export default function OficiosPage() {
     return todosProdutos.filter(
       (p) =>
         p.tipo.toUpperCase().trim() ===
-        saidaModal.oficio!.tipoEquipamento.toUpperCase().trim()
+        saidaModal.oficio!.tipoEquipamento.toUpperCase().trim(),
     );
   }, [todosProdutos, saidaModal.oficio]);
 
   const produtoSelecionado = produtosDisponiveis.find(
-    (p) => p.id === produtoSelecionadoId
+    (p) => p.id === produtoSelecionadoId,
   );
 
   return (
@@ -212,6 +275,9 @@ export default function OficiosPage() {
                     Estado
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    valorEmFalta
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Data
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -250,22 +316,39 @@ export default function OficiosPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span
-                          className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
-                            aprovado
+                          className={`inline-flex text-center px-3 py-1 rounded-full text-xs font-semibold ${
+                            estado === "CONCLUIDA"
                               ? "bg-green-100 text-green-800"
-                              : estado === "RECUSADO"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-yellow-100 text-yellow-800"
+                              : estado === "PAGAMENTO_PENDENTE"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : estado === "APROVADA"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : estado === "RECUSADA"
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-gray-100 text-gray-800"
                           }`}
                         >
                           {estado === "EM_ANALISE"
                             ? "Em análise"
                             : estado === "APROVADA"
-                            ? "Aprovado"
-                            : estado === "AGUARDANDO_STOCK"
-                            ? "Aguardando Stock"
-                            : "Recusado"}
+                              ? "Aprovado"
+                              : estado === "AGUARDANDO_STOCK"
+                                ? "Aguardando Stock"
+                                : estado === "PAGAMENTO_PENDENTE"
+                                  ? "Pagamento Pendente"
+                                  : estado === "CONCLUIDA"
+                                    ? "Concluída"
+                                    : "Recusado"}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {oficio?.notaAquisicao?.valorEmFalta != null
+                          ? new Intl.NumberFormat("pt-AO", {
+                              style: "currency",
+                              currency: "AOA",
+                              minimumFractionDigits: 2,
+                            }).format(Number(oficio.notaAquisicao.valorEmFalta))
+                          : "---"}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {new Date(oficio.dataEnvio).toLocaleDateString("pt-AO")}
@@ -288,7 +371,7 @@ export default function OficiosPage() {
                         <button
                           onClick={() =>
                             setDropdownOpen(
-                              dropdownOpen === oficio.id ? null : oficio.id
+                              dropdownOpen === oficio.id ? null : oficio.id,
                             )
                           }
                           className="p-2 hover:bg-gray-100 rounded-lg transition"
@@ -303,7 +386,7 @@ export default function OficiosPage() {
                                 <button
                                   onClick={() => {
                                     aceitarMutation.mutate(
-                                      oficio.notaAquisicao.id
+                                      oficio.notaAquisicao.id,
                                     );
                                     setDropdownOpen(null);
                                   }}
@@ -318,6 +401,18 @@ export default function OficiosPage() {
                                   <XCircle className="w-4 h-4" /> Rejeitar
                                 </button>
                               </>
+                            )}
+
+                            {(oficio?.notaAquisicao?.estado === "APROVADA" ||
+                              oficio?.notaAquisicao?.estado ===
+                                "PAGAMENTO_PENDENTE") && (
+                              <button
+                                onClick={() => abrirPagamento(oficio)}
+                                className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 flex items-center gap-3 text-blue-700"
+                              >
+                                <FileText className="w-4 h-4" />
+                                Registrar Pagamento
+                              </button>
                             )}
 
                             {(aprovado || aguardarStock) && (
@@ -423,13 +518,14 @@ export default function OficiosPage() {
                 </label>
                 <input
                   type="number"
-                  min="1"
+                  min={produtoSelecionado?.stockAtual}
+                  disabled
                   max={saidaModal.oficio.quantidade}
                   value={quantidadeSaida}
                   onChange={(e) => {
                     const val = parseInt(e.target.value) || 1;
                     setQuantidadeSaida(
-                      Math.min(val, saidaModal.oficio!.quantidade)
+                      Math.min(val, saidaModal.oficio!.quantidade),
                     );
                   }}
                   className="w-full px-4 py-2 border rounded-lg"
@@ -501,6 +597,108 @@ export default function OficiosPage() {
                 className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
                 Rejeitar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pagamentoModal.aberto && pagamentoModal.oficio && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <h2 className="text-2xl font-bold mb-2 text-blue-700">
+              Registrar Pagamento
+            </h2>
+
+            <p className="text-gray-600 mb-4">
+              <strong>{pagamentoModal.oficio.descricao}</strong>
+              <br />
+              Cliente: {pagamentoModal.oficio.cliente.nomeCompleto}
+            </p>
+
+            <p className="text-sm text-gray-600 mb-4">
+              Estado da nota:{" "}
+              <strong>{pagamentoModal.oficio.notaAquisicao.estado}</strong>
+            </p>
+
+            <p className="text-sm text-gray-600 mb-6">
+              Crédito especial disponível:{" "}
+              <strong>
+                {pagamentoModal.oficio.cliente.creditoAcumulado ?? 0}
+              </strong>
+            </p>
+
+            <div className="space-y-4">
+              {/* Seleciona método de pagamento */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Método de pagamento
+                </label>
+                <select
+                  value={tipoPagamento}
+                  onChange={(e) => setTipoPagamento(e.target.value as any)}
+                  className="w-full px-4 py-2 border rounded-lg"
+                >
+                  <option value="NORMAL">Pagamento normal</option>
+                  <option value="CREDITO">Usar crédito especial</option>
+                </select>
+              </div>
+
+              {tipoPagamento === "NORMAL" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Valor do pagamento
+                  </label>
+                  <input
+                    type="number"
+                    value={valorPagamento}
+                    onChange={(e) => setValorPagamento(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ex: 150000"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-8">
+              <button
+                onClick={() => {
+                  setPagamentoModal({ aberto: false, oficio: null });
+                  setValorPagamento("");
+                  setTipoPagamento("NORMAL");
+                }}
+                className="px-5 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+
+              <button
+                onClick={() => {
+                  if (tipoPagamento === "NORMAL") {
+                    pagamentoMutation.mutate({
+                      notaId: pagamentoModal.oficio!.notaAquisicao.id,
+                      valor: Number(valorPagamento),
+                      tipo: "IMEDIATO", // ou PRESTACAO, poderia ter outro select
+                    });
+                  } else {
+                    creditoMutation.mutate({
+                      notaId: pagamentoModal.oficio!.notaAquisicao.id,
+                    });
+                  }
+                }}
+                disabled={
+                  (tipoPagamento === "NORMAL" &&
+                    (!valorPagamento || Number(valorPagamento) <= 0)) ||
+                  pagamentoMutation.isPending ||
+                  creditoMutation.isPending
+                }
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {pagamentoMutation.isPending || creditoMutation.isPending
+                  ? "Processando..."
+                  : tipoPagamento === "NORMAL"
+                    ? "Confirmar Pagamento"
+                    : "Usar Crédito Especial"}
               </button>
             </div>
           </div>

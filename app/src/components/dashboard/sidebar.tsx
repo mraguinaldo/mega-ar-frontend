@@ -29,6 +29,11 @@ const menuItems = {
       label: "Solicitar Equipamento",
       icon: FileText,
     },
+    {
+      href: "/dashboard/meus-pagamentos",
+      label: "Pagamentos",
+      icon: DollarSign,
+    },
   ],
   FUNCIONARIO: [
     { href: "/dashboard", label: "Início", icon: Home },
@@ -50,6 +55,7 @@ const menuItems = {
     { href: "/dashboard/produtos", label: "Estoque", icon: Package },
     { href: "/dashboard/relatorios", label: "Relatórios", icon: DollarSign },
     { href: "/dashboard/usuarios", label: "Usuários", icon: Users },
+    { href: "/dashboard/pagamentos", label: "Pagamentos", icon: DollarSign },
   ],
   FORNECEDOR: [
     { href: "/dashboard", label: "Início", icon: Home },

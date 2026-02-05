@@ -106,11 +106,23 @@ export default function MinhasSolicitacoes() {
           icon: Package,
           label: "Sem Stock",
         };
+      case "PAGAMENTO_PENDENTE":
+        return {
+          color: "bg-orange-100 text-orange-800",
+          icon: Package,
+          label: "Pagamento em falta",
+        };
       case "APROVADA":
         return {
           color: "bg-green-100 text-green-800",
           icon: CheckCircle,
           label: "Aprovada",
+        };
+      case "CONCLUIDA":
+        return {
+          color: "bg-green-100 text-green-800",
+          icon: CheckCircle,
+          label: "Concluida",
         };
       case "RECUSADA":
         return {
@@ -207,7 +219,7 @@ export default function MinhasSolicitacoes() {
                           {format(
                             new Date(oficio.dataEnvio),
                             "dd/MM/yyyy HH:mm",
-                            { locale: ptBR }
+                            { locale: ptBR },
                           )}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
@@ -278,7 +290,7 @@ export default function MinhasSolicitacoes() {
                             <button
                               onClick={() => {
                                 setMotivoAberto(
-                                  oficio.notaAquisicao.motivoRecusa
+                                  oficio.notaAquisicao.motivoRecusa,
                                 );
                                 setTitleModal("Motivo de Rejeição");
                               }}

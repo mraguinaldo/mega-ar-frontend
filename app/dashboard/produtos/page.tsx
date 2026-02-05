@@ -211,7 +211,7 @@ export default function ProdutosPage() {
                       <button
                         onClick={() =>
                           setDropdownOpen(
-                            dropdownOpen === produto.id ? null : produto.id
+                            dropdownOpen === produto.id ? null : produto.id,
                           )
                         }
                         className="p-2 hover:bg-gray-100 rounded-lg transition"

@@ -4,9 +4,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "../src/services/data";
-import Image from "next/image";
 import { Dialog } from "@headlessui/react";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "../src/store/auth-store";
 
 interface Produto {
   id: string;
@@ -21,6 +22,7 @@ interface Produto {
 }
 
 export default function DashboardHome() {
+  const { user } = useAuthStore();
   const { data: produtos = [], isLoading } = useQuery<Produto[]>({
     queryKey: ["catalogo-publico"],
     queryFn: async () => {
@@ -28,6 +30,8 @@ export default function DashboardHome() {
       return res.data;
     },
   });
+
+  const router = useRouter();
 
   // Estado do modal de imagens
   const [selectedProduto, setSelectedProduto] = useState<Produto | null>(null);
@@ -46,7 +50,7 @@ export default function DashboardHome() {
   const goToPrevious = () => {
     if (selectedProduto) {
       setCurrentImageIndex((prev) =>
-        prev === 0 ? selectedProduto.imagens.length - 1 : prev - 1
+        prev === 0 ? selectedProduto.imagens.length - 1 : prev - 1,
       );
     }
   };
@@ -54,7 +58,7 @@ export default function DashboardHome() {
   const goToNext = () => {
     if (selectedProduto) {
       setCurrentImageIndex((prev) =>
-        prev === selectedProduto.imagens.length - 1 ? 0 : prev + 1
+        prev === selectedProduto.imagens.length - 1 ? 0 : prev + 1,
       );
     }
   };
@@ -170,6 +174,21 @@ export default function DashboardHome() {
                         <span className="inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                           Em Stock
                         </span>
+                      )}
+
+                      {produto.stockAtual > 0 && user?.papel === "CLIENTE" && (
+                        <div className="mt-4 ">
+                          <button
+                            onClick={() =>
+                              router.push(
+                                `/dashboard/solicitar?tipo=${produto.tipo}`,
+                              )
+                            }
+                            className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-1 rounded-lg font-bold text-[12px] hover:shadow-lg transition px-4 cursor-pointer"
+                          >
+                            Solicitar este equipamento
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

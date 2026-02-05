@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FileText, Upload, CheckCircle } from "lucide-react";
 import api from "@/app/src/services/data";
 
@@ -65,7 +65,7 @@ const oficioSchema = z.object({
         const num = Number(val);
         return !isNaN(num) && num >= 1;
       },
-      { message: "Quantidade deve ser um número maior ou igual a 1" }
+      { message: "Quantidade deve ser um número maior ou igual a 1" },
     ),
   localInstalacao: z.string().min(5, "Mínimo 5 caracteres"),
   justificativa: z
@@ -81,6 +81,8 @@ export default function SolicitarOficioPage() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const queryClient = useQueryClient();
   const router = useRouter();
+
+  const searchParams = useSearchParams();
 
   const {
     register,
@@ -125,6 +127,14 @@ export default function SolicitarOficioPage() {
       e.target.value = "";
     }
   };
+
+  useEffect(() => {
+    const tipoUrl = searchParams.get("tipo") as TipoEquipamento | null;
+    if (tipoUrl && tiposEquipamento.some((t) => t.type === tipoUrl)) {
+      setValue("tipoEquipamento", tipoUrl);
+    }
+  }, [searchParams, setValue]);
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 py-10">
       <div className="text-center">
